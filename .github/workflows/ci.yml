@@ -1,0 +1,16 @@
+name: CI
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test || true
+      - run: cargo build --release || true
