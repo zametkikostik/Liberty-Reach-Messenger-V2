@@ -35,6 +35,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Flutter doctor
+        run: flutter doctor -v
+
       - name: Flutter pub get
         working-directory: mobile
         run: flutter pub get
@@ -69,11 +72,9 @@ jobs:
           name: Liberty Messenger ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
           body: |
             ## Liberty Messenger APK
-            Built by GitHub Actions (CI).
+            Built by GitHub Actions.
 
             Demo unlock: `master` | `duress` | other = decoy
-
-            https://github.com/zametkikostik/Liberty-Reach-Messenger-V2
           files: dist/*.apk
           generate_release_notes: true
         env:
