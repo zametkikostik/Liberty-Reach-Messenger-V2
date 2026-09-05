@@ -1,0 +1,47 @@
+[package]
+name = "liberty-core"
+version = "0.1.0"
+edition = "2021"
+description = "Liberty Messenger - Sovereign P2P core"
+license = "MIT"
+
+[lib]
+name = "liberty_core"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+aes-gcm = "0.10"
+chacha20poly1305 = "0.10"
+sha2 = "0.10"
+hkdf = "0.12"
+rand = "0.8"
+zeroize = { version = "1", features = ["derive"] }
+subtle = "2"
+argon2 = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sled = "0.34"
+thiserror = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+hex = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+once_cell = "1.19"
+regex = "1"
+libp2p = { version = "0.54", optional = true, features = ["tokio", "tcp", "quic", "noise", "yamux", "gossipsub", "kad", "mdns", "identify", "ping", "macros"] }
+pqcrypto-kyber = { version = "0.8", optional = true }
+pqcrypto-traits = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = ["libp2p-swarm"]
+libp2p-swarm = ["libp2p"]
+post-quantum = ["pqcrypto-kyber", "pqcrypto-traits"]
