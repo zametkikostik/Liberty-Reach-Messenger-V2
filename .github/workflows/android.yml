@@ -2,29 +2,82 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create GitHub Release with APK'
+        required: false
+        default: true
+        type: boolean
+      tag_name:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: false
+        default: 'v0.1.0-ci'
   push:
     branches: [master, main]
+    tags: ['v*']
+
+permissions:
+  contents: write
 
 jobs:
   apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
       - name: Flutter pub get
         working-directory: mobile
         run: flutter pub get
-      - name: Build APK (debug)
+
+      - name: Build debug APK
         working-directory: mobile
         run: flutter build apk --debug
-      - name: Upload APK
+
+      - name: Build release APK
+        working-directory: mobile
+        run: flutter build apk --release
+        continue-on-error: true
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp mobile/build/app/outputs/flutter-apk/*.apk dist/ || true
+          ls -la dist/
+
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: liberty-messenger-apk
-          path: mobile/build/app/outputs/flutter-apk/*.apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch' && inputs.create_release || startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          name: Liberty Messenger ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          body: |
+            ## Liberty Messenger APK
+            Built by GitHub Actions (CI).
+
+            Demo unlock: `master` | `duress` | other = decoy
+
+            https://github.com/zametkikostik/Liberty-Reach-Messenger-V2
+          files: dist/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   rust:
     runs-on: ubuntu-latest
@@ -34,7 +87,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Test
-        run: cargo test || true
-      - name: Build
-        run: cargo build --release || true
+      - run: cargo test || true
+      - run: cargo build --release || true
