@@ -35,9 +35,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Flutter doctor
-        run: flutter doctor -v
-
       - name: Flutter pub get
         working-directory: mobile
         run: flutter pub get
@@ -73,7 +70,6 @@ jobs:
           body: |
             ## Liberty Messenger APK
             Built by GitHub Actions.
-
             Demo unlock: `master` | `duress` | other = decoy
           files: dist/*.apk
           generate_release_notes: true
