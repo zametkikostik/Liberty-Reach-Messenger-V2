@@ -1,0 +1,8 @@
+name = "liberty-wake-relay"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+[[kv_namespaces]]
+binding = "LIBERTY_KV"
+id = "00000000000000000000000000000000"
+preview_id = "11111111111111111111111111111111"
