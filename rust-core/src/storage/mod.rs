@@ -8,7 +8,9 @@ pub struct Store {
 
 impl Store {
     pub fn open(path: &Path) -> Result<Self, sled::Error> {
-        Ok(Self { db: sled::open(path)? })
+        Ok(Self {
+            db: sled::open(path)?,
+        })
     }
 
     pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), sled::Error> {

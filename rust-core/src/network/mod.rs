@@ -1,21 +1,25 @@
 //! Network layer: transport, protocol, swarm, federation
 
-mod transport;
-mod messages;
+mod federation;
 mod libp2p_transport;
+mod messages;
 mod protocol;
 mod swarm;
-mod federation;
+mod transport;
 
-pub use transport::{Transport, LocalTransport, PeerInfo};
-pub use messages::{NetworkMessage, MessageType};
+pub use federation::{
+    add_peer as federation_add_peer, bootstrap_addrs, export_json as federation_export,
+    get_config as federation_config, import_json as federation_import, mesh_enabled,
+    set_config as set_federation_config, FederationConfig, FederationMode, FederationPeer,
+};
 pub use libp2p_transport::Libp2pTransport;
-pub use protocol::{WireMessage, PresenceStatus, topics};
+pub use messages::{MessageType, NetworkMessage};
+pub use protocol::{topics, PresenceStatus, WireMessage};
 pub use swarm::SwarmHandle;
-pub use federation::{FederationConfig, FederationMode, FederationPeer, get_config as federation_config, set_config as set_federation_config, add_peer as federation_add_peer, bootstrap_addrs, mesh_enabled, export_json as federation_export, import_json as federation_import};
+pub use transport::{LocalTransport, PeerInfo, Transport};
 
-use thiserror::Error;
 use crate::crypto::EncryptedMessage;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum NetworkError {
@@ -40,9 +44,15 @@ impl MessengerNode {
     pub fn new(peer_id: String, transport: Box<dyn Transport + Send + Sync>) -> Self {
         Self { peer_id, transport }
     }
-    pub fn peer_id(&self) -> &str { &self.peer_id }
+    pub fn peer_id(&self) -> &str {
+        &self.peer_id
+    }
 
-    pub async fn send_encrypted(&self, to: &str, msg: &EncryptedMessage) -> Result<(), NetworkError> {
+    pub async fn send_encrypted(
+        &self,
+        to: &str,
+        msg: &EncryptedMessage,
+    ) -> Result<(), NetworkError> {
         let net_msg = NetworkMessage {
             from: self.peer_id.clone(),
             to: to.to_string(),

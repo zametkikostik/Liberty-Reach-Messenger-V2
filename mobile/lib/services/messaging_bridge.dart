@@ -1,6 +1,6 @@
 import 'rust_bridge.dart';
-import 'network_config.dart';
 
+/// High-level facade over [RustBridge] for the messaging stack.
 class MessagingBridge {
   static final instance = MessagingBridge._();
   MessagingBridge._();
@@ -10,7 +10,7 @@ class MessagingBridge {
   String? _peerId;
 
   Future<void> ensureStarted() async {
-    await _bridge.tryLoadNative();
+    if (!_bridge.isNative) await _bridge.tryLoadNative();
     _sessionHandle ??= await _bridge.sessionCreate();
     _peerId ??= await _bridge.identityCreate('identity.key');
   }
@@ -35,5 +35,13 @@ class MessagingBridge {
     return _bridge.sessionEncrypt(peerId, text, ephHex: ephHex);
   }
 
-  Future<bool> swarmPreferred() => NetworkConfig.instance.swarmEnabled();
+  Future<String> decrypt(String peerId, String encryptedJson) async {
+    await ensureStarted();
+    return _bridge.sessionDecrypt(peerId, encryptedJson);
+  }
+
+  Future<bool> hasSession(String peerId) async {
+    await ensureStarted();
+    return _bridge.sessionHas(peerId);
+  }
 }

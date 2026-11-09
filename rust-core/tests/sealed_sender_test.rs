@@ -15,5 +15,5 @@ fn seal_and_open() {
     .unwrap();
     let (sender, payload) = SealedSender::open(&envelope, &bob_secret.secret).unwrap();
     assert_eq!(sender.peer_id, "alice-peer");
-    assert_eq!(payload, b"ciphertext-payload");
+    assert_eq!(payload, b"ciphertext-payload".as_slice());
 }

@@ -2,16 +2,17 @@
 mod messaging_api;
 pub use messaging_api::*;
 
-use crate::security::{Vault, VaultConfig, VaultMode};
-use crate::crypto::{IdentityKeyPair, SessionManager, PreKeyBundle};
+use crate::crypto::{EncryptedMessage, IdentityKeyPair, PreKeyBundle, SessionManager};
 use crate::identity::Identity;
+use crate::security::{Vault, VaultConfig, VaultMode};
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::collections::HashMap;
-use once_cell::sync::Lazy;
 
 static VAULTS: Lazy<Mutex<HashMap<u32, Vault>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-static SESSIONS: Lazy<Mutex<HashMap<u32, SessionManager>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static SESSIONS: Lazy<Mutex<HashMap<u32, SessionManager>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 static NEXT: Lazy<Mutex<u32>> = Lazy::new(|| Mutex::new(1));
 
 fn alloc_id() -> u32 {
@@ -57,7 +58,12 @@ pub fn vault_close(handle: u32) -> bool {
 }
 
 pub fn vault_is_real(handle: u32) -> bool {
-    VAULTS.lock().unwrap().get(&handle).map(|v| v.is_real()).unwrap_or(false)
+    VAULTS
+        .lock()
+        .unwrap()
+        .get(&handle)
+        .map(|v| v.is_real())
+        .unwrap_or(false)
 }
 
 pub fn identity_create(path: String) -> String {
@@ -125,6 +131,50 @@ pub fn session_encrypt(handle: u32, peer_id: String, plaintext: String, eph_hex:
     }
 }
 
+/// Create a session bound to a persisted identity file (load-or-generate).
+/// The prekey bundle is then stable across app restarts and tied to
+/// `identity.key`. Returns 0 on error.
+pub fn session_create_with_identity(identity_path: String) -> u32 {
+    let id = match crate::identity::Identity::load_or_generate(&PathBuf::from(identity_path)) {
+        Ok(id) => id,
+        Err(_) => return 0,
+    };
+    let sm = SessionManager::new(id.keypair().clone());
+    let h = alloc_id();
+    SESSIONS.lock().unwrap().insert(h, sm);
+    h
+}
+
+/// Decrypt an incoming EncryptedMessage (JSON). Bootstraps a responder
+/// session via X3DH when none exists for the peer yet (requires
+/// `initiator_ephemeral` + `sender_identity_x25519` in the message).
+/// Returns the plaintext, or an empty string on any failure.
+pub fn session_decrypt(handle: u32, peer_id: String, encrypted_json: String) -> String {
+    let mut map = SESSIONS.lock().unwrap();
+    let sm = match map.get_mut(&handle) {
+        Some(s) => s,
+        None => return String::new(),
+    };
+    let msg: EncryptedMessage = match serde_json::from_str(&encrypted_json) {
+        Ok(m) => m,
+        Err(_) => return String::new(),
+    };
+    match sm.decrypt_smart(&peer_id, &msg) {
+        Ok(pt) => String::from_utf8(pt).unwrap_or_default(),
+        Err(_) => String::new(),
+    }
+}
+
+/// Whether an E2EE session already exists for the given peer.
+pub fn session_has(handle: u32, peer_id: String) -> bool {
+    SESSIONS
+        .lock()
+        .unwrap()
+        .get(&handle)
+        .map(|s| s.has_session(&peer_id))
+        .unwrap_or(false)
+}
+
 pub fn federation_get() -> String {
     crate::network::federation_export()
 }
@@ -142,11 +192,15 @@ pub fn federation_mesh_enabled() -> bool {
 }
 
 pub fn cipher_suites() -> String {
-    let names: Vec<&str> = crate::crypto::available_suites().iter().map(|s| s.name()).collect();
+    let names: Vec<&str> = crate::crypto::available_suites()
+        .iter()
+        .map(|s| s.name())
+        .collect();
     serde_json::to_string(&names).unwrap_or_default()
 }
 
 pub fn build_features() -> String {
+    #[allow(unused_mut)] // mut is only used when libp2p-swarm / post-quantum features are on
     let mut f = vec!["e2ee", "vault", "federation"];
     #[cfg(feature = "libp2p-swarm")]
     f.push("libp2p");

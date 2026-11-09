@@ -1,15 +1,15 @@
 //! Hidden Vault: Master / Duress / Decoy passwords
 //! Master → Real DB; other → Decoy; Duress → Panic Wipe
 
+use crate::security::wipe::secure_wipe_file;
 use argon2::{
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
 use sled::Db;
 use std::path::PathBuf;
-use zeroize::Zeroize;
 use thiserror::Error;
-use crate::security::wipe::secure_wipe_file;
+use zeroize::Zeroize;
 
 #[derive(Error, Debug)]
 pub enum VaultError {
@@ -51,7 +51,6 @@ pub struct Vault {
     mode: Option<VaultMode>,
     master_hash: String,
     duress_hash: String,
-    salt: String,
 }
 
 impl Vault {
@@ -67,7 +66,6 @@ impl Vault {
             mode: None,
             master_hash,
             duress_hash,
-            salt: salt.to_string(),
         })
     }
 
@@ -92,8 +90,12 @@ impl Vault {
         Ok(VaultMode::Decoy)
     }
 
-    pub fn mode(&self) -> Option<VaultMode> { self.mode }
-    pub fn is_real(&self) -> bool { self.mode == Some(VaultMode::Real) }
+    pub fn mode(&self) -> Option<VaultMode> {
+        self.mode
+    }
+    pub fn is_real(&self) -> bool {
+        self.mode == Some(VaultMode::Real)
+    }
 
     pub fn panic_wipe(&mut self) -> Result<(), VaultError> {
         tracing::warn!("PANIC WIPE initiated");
@@ -121,7 +123,10 @@ impl Vault {
 }
 
 fn hash_password(argon2: &Argon2, password: &str, salt: &SaltString) -> Result<String, VaultError> {
-    argon2.hash_password(password.as_bytes(), salt).map(|h| h.to_string()).map_err(|_| VaultError::Crypto)
+    argon2
+        .hash_password(password.as_bytes(), salt)
+        .map(|h| h.to_string())
+        .map_err(|_| VaultError::Crypto)
 }
 
 fn verify_password(argon2: &Argon2, password: &str, hash_str: &str) -> Result<bool, VaultError> {

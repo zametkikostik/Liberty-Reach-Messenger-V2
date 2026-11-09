@@ -1,4 +1,5 @@
 //! Best-effort forensic / environment detection
+#[cfg(target_os = "android")]
 use std::path::Path;
 
 pub struct ForensicDetector;
@@ -12,7 +13,9 @@ impl ForensicDetector {
                 "/dev/qemu_pipe",
                 "/system/lib/libc_malloc_debug_qemu.so",
             ];
-            if props.iter().any(|p| Path::new(p).exists()) { return true; }
+            if props.iter().any(|p| Path::new(p).exists()) {
+                return true;
+            }
         }
         false
     }
@@ -36,8 +39,12 @@ impl ForensicDetector {
 
     pub fn risk_level() -> u8 {
         let mut score = 0u8;
-        if Self::is_emulator() { score += 2; }
-        if Self::is_rooted() { score += 3; }
+        if Self::is_emulator() {
+            score += 2;
+        }
+        if Self::is_rooted() {
+            score += 3;
+        }
         score
     }
 }

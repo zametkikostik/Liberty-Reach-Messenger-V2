@@ -1,5 +1,5 @@
 //! MLS-lite group scaffolding (not full RFC 9420 yet)
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeyPackage {

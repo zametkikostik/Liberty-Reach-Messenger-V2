@@ -1,7 +1,6 @@
 //! High-level messaging service combining sessions + transport
-use crate::crypto::{SessionManager, EncryptedMessage, IdentityKeyPair};
-use crate::network::{MessengerNode, LocalTransport, NetworkError};
-use std::sync::Arc;
+use crate::crypto::{EncryptedMessage, IdentityKeyPair, SessionManager};
+use crate::network::{LocalTransport, MessengerNode};
 
 pub struct MessagingService {
     pub peer_id: String,
@@ -20,7 +19,10 @@ impl MessagingService {
 
     pub fn with_local_transport(mut self) -> Self {
         let transport = LocalTransport::new(&self.peer_id);
-        self.node = Some(MessengerNode::new(self.peer_id.clone(), Box::new(transport)));
+        self.node = Some(MessengerNode::new(
+            self.peer_id.clone(),
+            Box::new(transport),
+        ));
         self
     }
 
@@ -29,9 +31,14 @@ impl MessagingService {
     }
 
     pub async fn send(&mut self, to: &str, plaintext: &[u8]) -> Result<EncryptedMessage, String> {
-        let msg = self.sessions.encrypt_for(to, plaintext, None).map_err(|e| e.to_string())?;
+        let msg = self
+            .sessions
+            .encrypt_for(to, plaintext, None)
+            .map_err(|e| e.to_string())?;
         if let Some(ref node) = self.node {
-            node.send_encrypted(to, &msg).await.map_err(|e| e.to_string())?;
+            node.send_encrypted(to, &msg)
+                .await
+                .map_err(|e| e.to_string())?;
         }
         Ok(msg)
     }

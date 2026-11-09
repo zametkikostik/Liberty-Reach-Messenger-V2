@@ -65,7 +65,7 @@ class ChatRepository {
   }
 
   Future<void> saveContacts() async {
-    final list = PeerRegistry.instance.all.map((p) => {'peerId': p.peerId, 'bundleJson': p.bundleJson, 'ephHex': p.ephHex}).toList();
+    final list = PeerRegistry.instance.all.map((p) => {'peerId': p.peerId, 'bundleJson': p.bundleJson, 'ephHex': p.myEphHex}).toList();
     await _storage.write(key: 'contacts_v1', value: jsonEncode(list));
   }
 
@@ -76,7 +76,7 @@ class ChatRepository {
     var msg = ChatMessage(id: id, peerId: peerId, text: text, isMe: true, time: DateTime.now(), status: MessageStatus.sending, ttlSecs: ttlSecs, replyToId: replyToId, replyToText: replyToText);
     _append(msg);
     final peer = PeerRegistry.instance.peers[peerId];
-    final encrypted = await _bridge.sessionEncrypt(peerId, text, ephHex: peer?.ephHex ?? '');
+    final encrypted = await _bridge.sessionEncrypt(peerId, text, ephHex: peer?.myEphHex ?? '');
     if (encrypted.isEmpty) {
       msg = msg.copyWith(status: MessageStatus.failed);
       _update(msg);
@@ -84,7 +84,8 @@ class ChatRepository {
     }
     msg = ChatMessage(id: id, peerId: peerId, text: text, isMe: true, time: msg.time, status: MessageStatus.sent, ttlSecs: ttlSecs, replyToId: replyToId, replyToText: replyToText, encryptedHint: encrypted.length > 36 ? '${encrypted.substring(0, 36)}…' : encrypted);
     _update(msg);
-    Future.delayed(const Duration(milliseconds: 400), () => _update(msg.copyWith(status: MessageStatus.delivered)));
+    // Delivery status now waits for a real transport ACK (Phase 2) —
+    // no fake timer-based 'delivered' anymore.
     final route = await PushService.instance.peerRoute(peerId) ?? peerId;
     PushService.instance.wakePeer(route, messageId: id);
     return msg;
@@ -96,7 +97,6 @@ class ChatRepository {
     final isImage = media.mime.startsWith('image/');
     final msg = ChatMessage(id: id, peerId: peerId, text: isImage ? '' : media.filename, isMe: true, time: DateTime.now(), status: MessageStatus.sent, ttlSecs: ttlSecs, mediaPath: path, mediaType: isImage ? 'image' : 'file', encryptedHint: 'media:${media.size}b');
     _append(msg);
-    Future.delayed(const Duration(milliseconds: 400), () => _update(msg.copyWith(status: MessageStatus.delivered)));
     return msg;
   }
 
@@ -115,6 +115,18 @@ class ChatRepository {
     final msg = ChatMessage(id: 'in-${DateTime.now().millisecondsSinceEpoch}', peerId: peerId, text: text, isMe: false, time: DateTime.now(), status: MessageStatus.delivered);
     _append(msg);
     _globalIn.add(msg);
+  }
+
+  /// Entry point for the transport layer (Phase 2): decrypt a real
+  /// EncryptedMessage, store it, and notify listeners. Returns false when
+  /// decryption fails (drop; NACK/retry arrives with the transport).
+  Future<bool> receiveEncrypted({required String peerId, required String encryptedJson}) async {
+    final text = await _bridge.sessionDecrypt(peerId, encryptedJson);
+    if (text.isEmpty) return false;
+    final msg = ChatMessage(id: 'in-${DateTime.now().millisecondsSinceEpoch}', peerId: peerId, text: text, isMe: false, time: DateTime.now(), status: MessageStatus.delivered);
+    _append(msg);
+    _globalIn.add(msg);
+    return true;
   }
 
   Future<void> markRead(String peerId) async {

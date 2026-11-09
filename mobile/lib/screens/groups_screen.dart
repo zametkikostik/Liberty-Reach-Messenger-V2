@@ -25,7 +25,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   Future<void> _create() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
-    final peer = await VaultService().peerId();
+    final peer = await VaultService.instance.peerId();
     await _svc.create(name, adminPeer: peer);
     _nameController.clear();
     setState(() {});

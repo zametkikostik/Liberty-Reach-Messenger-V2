@@ -1,9 +1,9 @@
 //! Media / file encryption
-use crate::crypto::{encrypt, decrypt, AeadError, CipherSuite, encrypt_with};
-use sha2::{Sha256, Digest};
+use crate::crypto::{decrypt, encrypt_with, AeadError, CipherSuite};
 use hkdf::Hkdf;
-use serde::{Serialize, Deserialize};
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct MediaAttachment {

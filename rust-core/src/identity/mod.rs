@@ -1,10 +1,10 @@
 //! Identity management
 use crate::crypto::IdentityKeyPair;
-use std::path::Path;
+use sha2::{Digest, Sha256};
 use std::fs;
-use zeroize::Zeroizing;
+use std::path::Path;
 use thiserror::Error;
-use sha2::{Sha256, Digest};
+use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
 pub enum IdentityError {
@@ -23,11 +23,16 @@ impl Identity {
     pub fn generate() -> Self {
         let app_keypair = IdentityKeyPair::generate();
         let peer_id = derive_peer_id(&app_keypair.public_key_bytes());
-        Self { app_keypair, peer_id }
+        Self {
+            app_keypair,
+            peer_id,
+        }
     }
 
     pub fn load_or_generate(path: &Path) -> Result<Self, IdentityError> {
-        if path.exists() { Self::load(path) } else {
+        if path.exists() {
+            Self::load(path)
+        } else {
             let id = Self::generate();
             id.save(path)?;
             Ok(id)
@@ -44,7 +49,7 @@ impl Identity {
         blob.extend_from_slice(&secret);
         blob.extend_from_slice(&dh);
         let z = Zeroizing::new(blob);
-        fs::write(path, z.as_ref())?;
+        fs::write(path, &z[..])?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -57,7 +62,9 @@ impl Identity {
 
     pub fn load(path: &Path) -> Result<Self, IdentityError> {
         let data = fs::read(path)?;
-        if data.len() < 32 { return Err(IdentityError::InvalidKey); }
+        if data.len() < 32 {
+            return Err(IdentityError::InvalidKey);
+        }
         let mut ed = [0u8; 32];
         ed.copy_from_slice(&data[..32]);
         let mut x = [0u8; 32];
@@ -68,12 +75,21 @@ impl Identity {
         }
         let app_keypair = IdentityKeyPair::from_bytes(ed, x);
         let peer_id = derive_peer_id(&app_keypair.public_key_bytes());
-        Ok(Self { app_keypair, peer_id })
+        Ok(Self {
+            app_keypair,
+            peer_id,
+        })
     }
 
-    pub fn peer_id(&self) -> &str { &self.peer_id }
-    pub fn keypair(&self) -> &IdentityKeyPair { &self.app_keypair }
-    pub fn public_key_bytes(&self) -> [u8; 32] { self.app_keypair.public_key_bytes() }
+    pub fn peer_id(&self) -> &str {
+        &self.peer_id
+    }
+    pub fn keypair(&self) -> &IdentityKeyPair {
+        &self.app_keypair
+    }
+    pub fn public_key_bytes(&self) -> [u8; 32] {
+        self.app_keypair.public_key_bytes()
+    }
 }
 
 fn derive_peer_id(public: &[u8; 32]) -> String {

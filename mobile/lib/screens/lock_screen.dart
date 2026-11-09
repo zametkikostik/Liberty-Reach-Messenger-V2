@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/vault_service.dart';
 import '../services/auth_service.dart';
-
 class LockScreen extends StatefulWidget {
   const LockScreen({super.key});
   @override
@@ -11,7 +10,7 @@ class LockScreen extends StatefulWidget {
 
 class _LockScreenState extends State<LockScreen> {
   final _controller = TextEditingController();
-  final _vault = VaultService();
+  final _vault = VaultService.instance;
   bool _loading = false;
   String? _error;
   String _status = '';
@@ -24,12 +23,21 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   Future<void> _init() async {
-    await _vault.init();
-    final ver = await _vault.version();
-    final native = _vault.isNative ? 'native' : 'sim';
-    final bio = await AuthService.instance.isBiometricsEnabled()
-        && await AuthService.instance.canUseBiometrics();
-    if (mounted) setState(() { _status = 'core $ver ($native)'; _bioEnabled = bio; });
+    try {
+      await _vault.init();
+      final ver = await _vault.version();
+      final bio = await AuthService.instance.isBiometricsEnabled()
+          && await AuthService.instance.canUseBiometrics();
+      if (mounted) {
+        setState(() {
+          _status = 'core $ver (native)';
+          _bioEnabled = bio;
+        });
+      }
+    } on StateError catch (e) {
+      // Fail fast: without the native core there is NO encryption.
+      if (mounted) setState(() => _error = e.message);
+    }
   }
 
   Future<void> _tryBiometric() async {

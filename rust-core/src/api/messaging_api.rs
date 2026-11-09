@@ -7,7 +7,8 @@ pub fn telegram_import_json(json: String) -> String {
             "ok": true,
             "chats": r.chats.len(),
             "messages": r.total_messages,
-        }).to_string(),
+        })
+        .to_string(),
         Err(e) => serde_json::json!({"ok": false, "error": e}).to_string(),
     }
 }
@@ -18,7 +19,8 @@ pub fn whatsapp_import_text(name: String, text: String) -> String {
             "ok": true,
             "name": r.chat.name,
             "messages": r.total_messages,
-        }).to_string(),
+        })
+        .to_string(),
         Err(e) => serde_json::json!({"ok": false, "error": e}).to_string(),
     }
 }

@@ -1,26 +1,30 @@
 //! Cryptographic primitives for Liberty Messenger
 
-mod keys;
 mod aead;
-mod ratchet;
-mod session;
-mod x3dh;
 mod disappearing;
+mod keys;
+mod media;
 mod mls;
 mod pq;
+mod ratchet;
 mod sealed_sender;
-mod media;
+mod session;
+mod x3dh;
 
-pub use keys::{IdentityKeyPair, SessionKeys, EphemeralKeyPair, DiffieHellman, PublicIdentity};
-pub use aead::{encrypt, decrypt, encrypt_with, decrypt_auto, AeadError, CipherSuite, available_suites};
-pub use ratchet::{RatchetSession, MessageHeader};
-pub use session::{SessionManager, EncryptedMessage};
-pub use x3dh::{X3DH, PreKeyBundle};
-pub use disappearing::{EphemeralMessage, DisappearMode, sweep_expired};
-pub use mls::{MlsGroup, MlsMessage, KeyPackage, Commit, Welcome};
-pub use pq::{HybridKeyExchange, PqPublicKey, PqSharedSecret, PqKeyPair};
-pub use sealed_sender::{SealedSender, SealedEnvelope, SealedSenderKeys, SealedSenderSecret, UnsealedSender};
-pub use media::{MediaCrypto, MediaAttachment};
+pub use aead::{
+    available_suites, decrypt, decrypt_auto, encrypt, encrypt_with, AeadError, CipherSuite,
+};
+pub use disappearing::{sweep_expired, DisappearMode, EphemeralMessage};
+pub use keys::{DiffieHellman, EphemeralKeyPair, IdentityKeyPair, PublicIdentity, SessionKeys};
+pub use media::{MediaAttachment, MediaCrypto};
+pub use mls::{Commit, KeyPackage, MlsGroup, MlsMessage, Welcome};
+pub use pq::{HybridKeyExchange, PqKeyPair, PqPublicKey, PqSharedSecret};
+pub use ratchet::{MessageHeader, RatchetSession};
+pub use sealed_sender::{
+    SealedEnvelope, SealedSender, SealedSenderKeys, SealedSenderSecret, UnsealedSender,
+};
+pub use session::{EncryptedMessage, SessionManager};
+pub use x3dh::{PreKeyBundle, X3DH};
 
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -28,16 +32,28 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub struct SecretBytes(Vec<u8>);
 
 impl SecretBytes {
-    pub fn new(data: Vec<u8>) -> Self { Self(data) }
-    pub fn as_slice(&self) -> &[u8] { &self.0 }
-    pub fn len(&self) -> usize { self.0.len() }
-    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+    pub fn new(data: Vec<u8>) -> Self {
+        Self(data)
+    }
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl From<Vec<u8>> for SecretBytes {
-    fn from(v: Vec<u8>) -> Self { Self::new(v) }
+    fn from(v: Vec<u8>) -> Self {
+        Self::new(v)
+    }
 }
 
 impl AsRef<[u8]> for SecretBytes {
-    fn as_ref(&self) -> &[u8] { &self.0 }
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
 }

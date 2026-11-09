@@ -1,6 +1,6 @@
 //! Platform keystore interface + software fallback
-use zeroize::Zeroizing;
 use thiserror::Error;
+use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
 pub enum KeystoreError {
@@ -25,25 +25,40 @@ pub struct SoftwareKeystore {
 
 impl SoftwareKeystore {
     pub fn new() -> Self {
-        Self { map: std::sync::Mutex::new(std::collections::HashMap::new()) }
+        Self {
+            map: std::sync::Mutex::new(std::collections::HashMap::new()),
+        }
     }
 }
 
 impl Default for SoftwareKeystore {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SecureKeystore for SoftwareKeystore {
     fn store(&self, alias: &str, key: &[u8]) -> Result<(), KeystoreError> {
-        self.map.lock().unwrap().insert(alias.to_string(), key.to_vec());
+        self.map
+            .lock()
+            .unwrap()
+            .insert(alias.to_string(), key.to_vec());
         Ok(())
     }
     fn load(&self, alias: &str) -> Result<Zeroizing<Vec<u8>>, KeystoreError> {
-        self.map.lock().unwrap().get(alias).cloned().map(Zeroizing::new).ok_or(KeystoreError::NotFound)
+        self.map
+            .lock()
+            .unwrap()
+            .get(alias)
+            .cloned()
+            .map(Zeroizing::new)
+            .ok_or(KeystoreError::NotFound)
     }
     fn delete(&self, alias: &str) -> Result<(), KeystoreError> {
         self.map.lock().unwrap().remove(alias);
         Ok(())
     }
-    fn is_hardware_backed(&self) -> bool { false }
+    fn is_hardware_backed(&self) -> bool {
+        false
+    }
 }

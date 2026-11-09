@@ -1,17 +1,20 @@
 //! Group chats foundation (sender-keys style; full MLS later)
-use crate::crypto::{encrypt, decrypt, AeadError};
-use serde::{Serialize, Deserialize};
-use zeroize::{Zeroize, ZeroizeOnDrop};
-use std::collections::HashMap;
+use crate::crypto::{decrypt, encrypt, AeadError};
 use hkdf::Hkdf;
-use sha2::Sha256;
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
+use std::collections::HashMap;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub type GroupId = [u8; 32];
 pub type MemberId = String;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum Role { Admin, Member }
+pub enum Role {
+    Admin,
+    Member,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GroupMember {
@@ -54,7 +57,11 @@ impl GroupSession {
                 identity_public: admin_identity,
             }],
         };
-        let mut session = Self { meta, send_chain: None, recv_chains: HashMap::new() };
+        let mut session = Self {
+            meta,
+            send_chain: None,
+            recv_chains: HashMap::new(),
+        };
         session.init_send_chain();
         session
     }
@@ -62,7 +69,10 @@ impl GroupSession {
     fn init_send_chain(&mut self) {
         let mut ck = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut ck);
-        self.send_chain = Some(SenderChain { chain_key: ck, n: 0 });
+        self.send_chain = Some(SenderChain {
+            chain_key: ck,
+            n: 0,
+        });
     }
 
     fn kdf_ck(chain_key: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
@@ -105,7 +115,11 @@ pub struct GroupManager {
 }
 
 impl GroupManager {
-    pub fn new() -> Self { Self { groups: HashMap::new() } }
+    pub fn new() -> Self {
+        Self {
+            groups: HashMap::new(),
+        }
+    }
     pub fn create(&mut self, name: &str, admin: &str, id_pub: [u8; 32]) -> String {
         let g = GroupSession::create(name, admin, id_pub);
         let key = hex::encode(g.meta.id);
@@ -118,5 +132,7 @@ impl GroupManager {
 }
 
 impl Default for GroupManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

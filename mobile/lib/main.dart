@@ -27,7 +27,7 @@ class LibertyApp extends StatefulWidget {
 
 class _LibertyAppState extends State<LibertyApp> {
   final _navKey = GlobalKey<NavigatorState>();
-  final _vault = VaultService();
+  final _vault = VaultService.instance;
   AppLifecycleObserver? _lifecycle;
 
   @override

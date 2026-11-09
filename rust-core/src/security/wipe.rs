@@ -1,9 +1,9 @@
 //! Secure file wiping (best-effort anti-forensics)
 
-use std::fs::{self, OpenOptions};
-use std::io::{Write, Seek, SeekFrom};
-use std::path::Path;
 use rand::RngCore;
+use std::fs::{self, OpenOptions};
+use std::io::{Seek, SeekFrom, Write};
+use std::path::Path;
 
 /// Overwrite file with random data multiple times, then delete.
 /// On modern SSDs absolute guarantees need full-disk encryption.

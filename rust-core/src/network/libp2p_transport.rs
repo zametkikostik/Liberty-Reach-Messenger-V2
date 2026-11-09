@@ -1,5 +1,5 @@
 //! Libp2p transport placeholder (full Gossipsub when feature enabled)
-use crate::network::{Transport, PeerInfo, NetworkMessage, NetworkError};
+use crate::network::{NetworkError, NetworkMessage, PeerInfo, Transport};
 use async_trait::async_trait;
 
 pub struct Libp2pTransport {
@@ -8,7 +8,9 @@ pub struct Libp2pTransport {
 
 impl Libp2pTransport {
     pub fn new(peer_id: &str) -> Self {
-        Self { peer_id: peer_id.to_string() }
+        Self {
+            peer_id: peer_id.to_string(),
+        }
     }
 }
 

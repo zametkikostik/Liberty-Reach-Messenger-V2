@@ -1,4 +1,4 @@
-use liberty_core::crypto::{SessionKeys, RatchetSession, IdentityKeyPair, X3DH, SessionManager};
+use liberty_core::crypto::{IdentityKeyPair, RatchetSession, SessionKeys, SessionManager, X3DH};
 
 #[test]
 fn ratchet_encrypt_produces_output() {

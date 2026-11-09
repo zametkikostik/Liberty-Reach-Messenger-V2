@@ -1,6 +1,6 @@
 //! Transport trait + LocalTransport for tests
+use crate::network::{NetworkError, NetworkMessage};
 use async_trait::async_trait;
-use crate::network::{NetworkMessage, NetworkError};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
@@ -18,11 +18,16 @@ pub trait Transport: Send + Sync {
     fn local_peer_id(&self) -> &str;
 }
 
+/// Shared inbox queue owned by each transport endpoint.
+pub type PeerInbox = Arc<Mutex<VecDeque<NetworkMessage>>>;
+/// Registry of peer inboxes shared with a LocalTransport.
+pub type PeerInboxMap = Arc<Mutex<HashMap<String, PeerInbox>>>;
+
 /// In-process transport for unit tests / simulation
 pub struct LocalTransport {
     peer_id: String,
-    peers: Arc<Mutex<HashMap<String, Arc<Mutex<VecDeque<NetworkMessage>>>>>>,
-    inbox: Arc<Mutex<VecDeque<NetworkMessage>>>,
+    peers: PeerInboxMap,
+    inbox: PeerInbox,
 }
 
 impl LocalTransport {
@@ -34,11 +39,14 @@ impl LocalTransport {
         }
     }
 
-    pub fn register_peer(&self, peer_id: &str, inbox: Arc<Mutex<VecDeque<NetworkMessage>>>) {
-        self.peers.lock().unwrap().insert(peer_id.to_string(), inbox);
+    pub fn register_peer(&self, peer_id: &str, inbox: PeerInbox) {
+        self.peers
+            .lock()
+            .unwrap()
+            .insert(peer_id.to_string(), inbox);
     }
 
-    pub fn inbox_handle(&self) -> Arc<Mutex<VecDeque<NetworkMessage>>> {
+    pub fn inbox_handle(&self) -> PeerInbox {
         self.inbox.clone()
     }
 }
@@ -49,7 +57,10 @@ impl Transport for LocalTransport {
         if self.peers.lock().unwrap().contains_key(&peer.peer_id) {
             Ok(())
         } else {
-            Err(NetworkError::Connection(format!("peer {} not registered", peer.peer_id)))
+            Err(NetworkError::Connection(format!(
+                "peer {} not registered",
+                peer.peer_id
+            )))
         }
     }
 
@@ -64,5 +75,7 @@ impl Transport for LocalTransport {
         Ok(self.inbox.lock().unwrap().pop_front())
     }
 
-    fn local_peer_id(&self) -> &str { &self.peer_id }
+    fn local_peer_id(&self) -> &str {
+        &self.peer_id
+    }
 }

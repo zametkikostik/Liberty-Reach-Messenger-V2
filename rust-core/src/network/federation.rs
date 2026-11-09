@@ -1,7 +1,7 @@
 //! Federated mode + mesh discovery
-use serde::{Serialize, Deserialize};
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FederationPeer {
@@ -40,10 +40,15 @@ impl Default for FederationConfig {
     }
 }
 
-static CONFIG: Lazy<Mutex<FederationConfig>> = Lazy::new(|| Mutex::new(FederationConfig::default()));
+static CONFIG: Lazy<Mutex<FederationConfig>> =
+    Lazy::new(|| Mutex::new(FederationConfig::default()));
 
-pub fn get_config() -> FederationConfig { CONFIG.lock().unwrap().clone() }
-pub fn set_config(cfg: FederationConfig) { *CONFIG.lock().unwrap() = cfg; }
+pub fn get_config() -> FederationConfig {
+    CONFIG.lock().unwrap().clone()
+}
+pub fn set_config(cfg: FederationConfig) {
+    *CONFIG.lock().unwrap() = cfg;
+}
 
 pub fn add_peer(peer: FederationPeer) {
     let mut cfg = CONFIG.lock().unwrap();
@@ -61,13 +66,21 @@ pub fn bootstrap_addrs() -> Vec<String> {
         FederationMode::Private | FederationMode::Federated => {
             let mut peers = cfg.peers.clone();
             peers.sort_by_key(|p| p.priority);
-            peers.into_iter().flat_map(|p| p.multiaddrs).filter(|a| !a.is_empty()).take(cfg.max_bootstrap as usize).collect()
+            peers
+                .into_iter()
+                .flat_map(|p| p.multiaddrs)
+                .filter(|a| !a.is_empty())
+                .take(cfg.max_bootstrap as usize)
+                .collect()
         }
     }
 }
 
 pub fn mesh_enabled() -> bool {
-    matches!(CONFIG.lock().unwrap().mode, FederationMode::LocalMesh | FederationMode::Federated)
+    matches!(
+        CONFIG.lock().unwrap().mode,
+        FederationMode::LocalMesh | FederationMode::Federated
+    )
 }
 
 pub fn export_json() -> String {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/vault_service.dart';
@@ -7,8 +9,10 @@ import '../services/chat_repository.dart';
 class PeerInfo {
   final String peerId;
   final String bundleJson;
-  final String ephHex;
-  PeerInfo(this.peerId, this.bundleJson, this.ephHex);
+  /// OUR initiator ephemeral (hex) for this peer — attached to outgoing
+  /// messages so the responder can bootstrap. '' when we are the responder.
+  final String myEphHex;
+  PeerInfo(this.peerId, this.bundleJson, this.myEphHex);
 }
 
 class PeerRegistry {
@@ -16,8 +20,8 @@ class PeerRegistry {
   PeerRegistry._();
   final peers = <String, PeerInfo>{};
   List<PeerInfo> get all => peers.values.toList();
-  void add(String peerId, String bundleJson, String ephHex) {
-    peers[peerId] = PeerInfo(peerId, bundleJson, ephHex);
+  void add(String peerId, String bundleJson, String myEphHex) {
+    peers[peerId] = PeerInfo(peerId, bundleJson, myEphHex);
   }
 }
 
@@ -38,21 +42,36 @@ class _QrExchangeScreenState extends State<QrExchangeScreen> {
   }
 
   Future<void> _load() async {
-    final vault = VaultService();
+    final vault = VaultService.instance;
+    try {
+      await vault.init();
+    } on StateError catch (e) {
+      if (mounted) setState(() => _myPayload = e.message);
+      return;
+    }
     final peerId = await vault.peerId();
     final bundle = await vault.preKeyBundle();
-    setState(() => _myPayload = '{"peerId":"$peerId","bundle":$bundle}');
+    if (mounted) {
+      setState(() => _myPayload = jsonEncode({'peerId': peerId, 'bundle': jsonDecode(bundle)}));
+    }
   }
 
   Future<void> _accept() async {
     try {
       final raw = _paste.text.trim();
-      final map = raw.startsWith('{') ? (await Future.value(raw)) : raw;
-      // Minimal parse
-      final peerId = RegExp(r'"peerId"\s*:\s*"([^"]+)"').firstMatch(map)?.group(1) ?? 'peer';
-      PeerRegistry.instance.add(peerId, map, '');
+      if (raw.isEmpty) throw const FormatException('empty payload');
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final peerId = map['peerId'] as String? ?? '';
+      final bundle = map['bundle'];
+      if (peerId.isEmpty || bundle == null) {
+        throw const FormatException('payload must contain peerId and bundle');
+      }
+      final bundleJson = jsonEncode(bundle);
+      // We scanned THEIR payload → we are the initiator.
+      final myEph = await RustBridge.instance.sessionStartInitiator(peerId, bundleJson);
+      if (myEph.isEmpty) throw StateError('session start failed (invalid bundle?)');
+      PeerRegistry.instance.add(peerId, bundleJson, myEph);
       await ChatRepository.instance.saveContacts();
-      await RustBridge.instance.sessionStartInitiator(peerId, map);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Session started')));
         Navigator.pop(context);

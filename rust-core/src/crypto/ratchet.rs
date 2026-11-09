@@ -1,14 +1,13 @@
 //! Double Ratchet (Signal-style)
-use crate::crypto::{SessionKeys, encrypt, decrypt, AeadError, EphemeralKeyPair};
-use zeroize::{Zeroize, ZeroizeOnDrop};
-use sha2::Sha256;
+use crate::crypto::{decrypt, encrypt, AeadError, EphemeralKeyPair, SessionKeys};
 use hkdf::Hkdf;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::collections::HashMap;
+use zeroize::Zeroize;
 
 const MAX_SKIP: u32 = 100;
 
-#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct RatchetSession {
     root_key: [u8; 32],
     send_chain_key: Option<[u8; 32]>,
@@ -18,8 +17,25 @@ pub struct RatchetSession {
     prev_recv_n: u32,
     dh_send: Option<EphemeralKeyPair>,
     dh_recv_public: Option<[u8; 32]>,
-    #[zeroize(skip)]
     skipped_keys: HashMap<(Vec<u8>, u32), [u8; 32]>,
+}
+
+impl Drop for RatchetSession {
+    fn drop(&mut self) {
+        self.root_key.zeroize();
+        if let Some(ref mut ck) = self.send_chain_key {
+            ck.zeroize();
+        }
+        if let Some(ref mut ck) = self.recv_chain_key {
+            ck.zeroize();
+        }
+        self.dh_send.take(); // EphemeralKeyPair zeroes itself on drop (ZeroizeOnDrop in keys.rs)
+        self.dh_recv_public = None; // public key, not secret material
+        for mk in self.skipped_keys.values_mut() {
+            mk.zeroize();
+        }
+        self.skipped_keys.clear();
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -73,12 +89,24 @@ impl RatchetSession {
         (new_root, chain)
     }
 
-    pub fn encrypt(&mut self, plaintext: &[u8], aad: &[u8]) -> Result<(MessageHeader, Vec<u8>), AeadError> {
+    pub fn encrypt(
+        &mut self,
+        plaintext: &[u8],
+        aad: &[u8],
+    ) -> Result<(MessageHeader, Vec<u8>), AeadError> {
         let chain = self.send_chain_key.as_mut().ok_or(AeadError::Encrypt)?;
         let (msg_key, next_ck) = Self::kdf_ck(chain);
         *chain = next_ck;
-        let dh_public = self.dh_send.as_ref().map(|d| d.public_bytes()).unwrap_or([0u8; 32]);
-        let header = MessageHeader { dh_public, n: self.send_n, pn: self.prev_recv_n };
+        let dh_public = self
+            .dh_send
+            .as_ref()
+            .map(|d| d.public_bytes())
+            .unwrap_or([0u8; 32]);
+        let header = MessageHeader {
+            dh_public,
+            n: self.send_n,
+            pn: self.prev_recv_n,
+        };
         self.send_n += 1;
         let mut full_aad = aad.to_vec();
         full_aad.extend_from_slice(&header.dh_public);
@@ -87,7 +115,12 @@ impl RatchetSession {
         Ok((header, ct))
     }
 
-    pub fn decrypt(&mut self, header: &MessageHeader, ciphertext: &[u8], aad: &[u8]) -> Result<Vec<u8>, AeadError> {
+    pub fn decrypt(
+        &mut self,
+        header: &MessageHeader,
+        ciphertext: &[u8],
+        aad: &[u8],
+    ) -> Result<Vec<u8>, AeadError> {
         let skip_key = (header.dh_public.to_vec(), header.n);
         if let Some(msg_key) = self.skipped_keys.remove(&skip_key) {
             let mut full_aad = aad.to_vec();

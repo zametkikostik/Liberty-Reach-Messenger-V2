@@ -2,11 +2,11 @@
 //! Without feature: deterministic placeholder (API compiles, not PQ-safe)
 
 use crate::crypto::{EphemeralKeyPair, SessionKeys};
-use sha2::Sha256;
 use hkdf::Hkdf;
-use serde::{Serialize, Deserialize};
-use zeroize::{Zeroize, ZeroizeOnDrop};
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PqPublicKey {
@@ -29,12 +29,17 @@ pub struct PqKeyPair {
 pub struct HybridKeyExchange;
 
 impl HybridKeyExchange {
-    pub fn generate_pq_keypair() -> PqKeyPair { pq_keypair() }
+    pub fn generate_pq_keypair() -> PqKeyPair {
+        pq_keypair()
+    }
 
     pub fn generate_hybrid_public() -> (EphemeralKeyPair, PqKeyPair, PqPublicKey) {
         let classical = EphemeralKeyPair::generate();
         let pq = pq_keypair();
-        let pk = PqPublicKey { classical: classical.public_bytes(), pq: pq.public.clone() };
+        let pk = PqPublicKey {
+            classical: classical.public_bytes(),
+            pq: pq.public.clone(),
+        };
         (classical, pq, pk)
     }
 
@@ -42,7 +47,10 @@ impl HybridKeyExchange {
         let our_classical = EphemeralKeyPair::generate();
         let classical_ss = our_classical.diffie_hellman(&their_pk.classical);
         let (pq_ss, ct) = pq_encapsulate(&their_pk.pq);
-        let our_pk = PqPublicKey { classical: our_classical.public_bytes(), pq: vec![] };
+        let our_pk = PqPublicKey {
+            classical: our_classical.public_bytes(),
+            pq: vec![],
+        };
         (combine(classical_ss.as_slice(), &pq_ss), our_pk, ct)
     }
 
@@ -68,9 +76,17 @@ impl HybridKeyExchange {
         k2.copy_from_slice(&okm[32..64]);
         root.copy_from_slice(&okm[64..96]);
         if initiator {
-            SessionKeys { send_key: k1, recv_key: k2, chain_key: root }
+            SessionKeys {
+                send_key: k1,
+                recv_key: k2,
+                chain_key: root,
+            }
         } else {
-            SessionKeys { send_key: k2, recv_key: k1, chain_key: root }
+            SessionKeys {
+                send_key: k2,
+                recv_key: k1,
+                chain_key: root,
+            }
         }
     }
 }
@@ -90,7 +106,10 @@ fn pq_keypair() -> PqKeyPair {
     use pqcrypto_kyber::kyber768;
     use pqcrypto_traits::kem::{PublicKey, SecretKey};
     let (pk, sk) = kyber768::keypair();
-    PqKeyPair { public: pk.as_bytes().to_vec(), secret: sk.as_bytes().to_vec() }
+    PqKeyPair {
+        public: pk.as_bytes().to_vec(),
+        secret: sk.as_bytes().to_vec(),
+    }
 }
 
 #[cfg(not(feature = "post-quantum"))]
@@ -105,7 +124,7 @@ fn pq_keypair() -> PqKeyPair {
 #[cfg(feature = "post-quantum")]
 fn pq_encapsulate(pk_bytes: &[u8]) -> (Vec<u8>, Vec<u8>) {
     use pqcrypto_kyber::kyber768;
-    use pqcrypto_traits::kem::{PublicKey, SharedSecret, Ciphertext};
+    use pqcrypto_traits::kem::{Ciphertext, PublicKey, SharedSecret};
     let pk = kyber768::PublicKey::from_bytes(pk_bytes).expect("pk");
     let (ss, ct) = kyber768::encapsulate(&pk);
     (ss.as_bytes().to_vec(), ct.as_bytes().to_vec())
@@ -113,16 +132,15 @@ fn pq_encapsulate(pk_bytes: &[u8]) -> (Vec<u8>, Vec<u8>) {
 
 #[cfg(not(feature = "post-quantum"))]
 fn pq_encapsulate(pk_bytes: &[u8]) -> (Vec<u8>, Vec<u8>) {
-    let mut ss = vec![0u8; 32];
-    let mut ct = pk_bytes.to_vec();
-    rand::thread_rng().fill_bytes(&mut ss);
-    (ss, ct)
+    // Deterministic, self-consistent placeholder (NOT PQ-safe).
+    // ct == pk, so decapsulate(ct) reproduces the same ss.
+    (pq_placeholder_ss(pk_bytes), pk_bytes.to_vec())
 }
 
 #[cfg(feature = "post-quantum")]
 fn pq_decapsulate(sk_bytes: &[u8], ct_bytes: &[u8]) -> Vec<u8> {
     use pqcrypto_kyber::kyber768;
-    use pqcrypto_traits::kem::{SecretKey, Ciphertext, SharedSecret};
+    use pqcrypto_traits::kem::{Ciphertext, SecretKey, SharedSecret};
     let sk = kyber768::SecretKey::from_bytes(sk_bytes).expect("sk");
     let ct = kyber768::Ciphertext::from_bytes(ct_bytes).expect("ct");
     kyber768::decapsulate(&ct, &sk).as_bytes().to_vec()
@@ -130,7 +148,13 @@ fn pq_decapsulate(sk_bytes: &[u8], ct_bytes: &[u8]) -> Vec<u8> {
 
 #[cfg(not(feature = "post-quantum"))]
 fn pq_decapsulate(_sk: &[u8], ct: &[u8]) -> Vec<u8> {
+    pq_placeholder_ss(ct)
+}
+
+#[cfg(not(feature = "post-quantum"))]
+fn pq_placeholder_ss(input: &[u8]) -> Vec<u8> {
+    let hk = Hkdf::<Sha256>::new(None, input);
     let mut ss = vec![0u8; 32];
-    for (i, b) in ct.iter().take(32).enumerate() { ss[i] = *b; }
+    hk.expand(b"Liberty-PQ-Placeholder", &mut ss).expect("HKDF");
     ss
 }

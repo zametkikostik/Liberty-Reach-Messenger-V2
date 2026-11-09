@@ -16,5 +16,7 @@ pub enum FfiError {
 }
 
 impl FfiError {
-    pub fn code(self) -> i32 { self as i32 }
+    pub fn code(self) -> i32 {
+        self as i32
+    }
 }

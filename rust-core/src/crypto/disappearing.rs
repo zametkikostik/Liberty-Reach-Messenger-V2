@@ -1,6 +1,6 @@
 //! Disappearing (ephemeral) messages
-use serde::{Serialize, Deserialize};
 use crate::crypto::EncryptedMessage;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DisappearMode {
@@ -25,7 +25,13 @@ impl EphemeralMessage {
         } else {
             None
         };
-        Self { encrypted, mode, ttl_secs, timer_start, read: false }
+        Self {
+            encrypted,
+            mode,
+            ttl_secs,
+            timer_start,
+            read: false,
+        }
     }
 
     pub fn mark_read(&mut self, now: i64) {
@@ -57,7 +63,8 @@ impl EphemeralMessage {
 }
 
 pub fn sweep_expired(messages: Vec<EphemeralMessage>, now: i64) -> Vec<EphemeralMessage> {
-    messages.into_iter().filter(|m| !m.is_expired(now)).collect()
+    messages
+        .into_iter()
+        .filter(|m| !m.is_expired(now))
+        .collect()
 }
-
-pub type DisappearingPolicy = DisappearMode;

@@ -1,4 +1,4 @@
-use liberty_core::crypto::{EphemeralKeyPair, DiffieHellman, IdentityKeyPair, X3DH};
+use liberty_core::crypto::{DiffieHellman, EphemeralKeyPair, IdentityKeyPair, X3DH};
 
 #[test]
 fn classic_diffie_hellman_matches() {

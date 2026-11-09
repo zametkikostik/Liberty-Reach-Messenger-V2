@@ -1,5 +1,5 @@
 //! Wire protocol for Gossipsub topics
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub mod topics {
     pub const CHAT: &str = "liberty/chat/1.0.0";

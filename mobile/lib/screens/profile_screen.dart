@@ -17,7 +17,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     ProfileService.instance.load().then((p) {
       _name.text = p.displayName;
-      VaultService().peerId().then((id) { if (mounted) setState(() => _peerId = id); });
+      VaultService.instance.peerId().then((id) { if (mounted) setState(() => _peerId = id); });
       setState(() {});
     });
   }

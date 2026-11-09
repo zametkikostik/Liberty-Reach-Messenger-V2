@@ -5,7 +5,6 @@ import 'chat_screen.dart';
 import 'security_screen.dart';
 import 'qr_exchange_screen.dart';
 import 'groups_screen.dart';
-import 'import_screen.dart';
 import 'profile_screen.dart';
 import 'federation_screen.dart';
 
@@ -16,7 +15,7 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  final _vault = VaultService();
+  final _vault = VaultService.instance;
   final _repo = ChatRepository.instance;
   VaultMode? _mode;
 

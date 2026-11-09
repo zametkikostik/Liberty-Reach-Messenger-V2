@@ -1,6 +1,6 @@
 //! WhatsApp chat export (.txt) parser
-use serde::{Serialize, Deserialize};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WhatsAppMessage {
@@ -37,7 +37,10 @@ impl WhatsAppImporter {
         }
         let total = messages.len();
         Ok(WhatsAppImportResult {
-            chat: WhatsAppChat { name: name.to_string(), messages },
+            chat: WhatsAppChat {
+                name: name.to_string(),
+                messages,
+            },
             total_messages: total,
         })
     }

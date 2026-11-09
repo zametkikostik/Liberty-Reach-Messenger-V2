@@ -1,11 +1,8 @@
 import 'dart:async';
-import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../models/message.dart';
 import '../services/chat_repository.dart';
-import '../services/media_service.dart';
-import '../services/typing_service.dart';
-import '../services/voice_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final String peerName;

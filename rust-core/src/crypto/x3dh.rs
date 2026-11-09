@@ -2,10 +2,10 @@
 //! DH1 = DH(IKa, SPKb); DH2 = DH(EKa, IKb); DH3 = DH(EKa, SPKb)
 //! Shared key = HKDF(DH1 || DH2 || DH3)
 
-use crate::crypto::{IdentityKeyPair, EphemeralKeyPair, SessionKeys};
-use sha2::Sha256;
+use crate::crypto::{EphemeralKeyPair, IdentityKeyPair, SessionKeys};
 use hkdf::Hkdf;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PreKeyBundle {
@@ -51,7 +51,10 @@ impl X3DH {
         let dh1 = our_signed_prekey.diffie_hellman(their_identity_x25519);
         let dh2 = our_identity.diffie_hellman(their_ephemeral);
         let dh3 = our_signed_prekey.diffie_hellman(their_ephemeral);
-        Ok(combine(&[dh1.as_slice(), dh2.as_slice(), dh3.as_slice()], false))
+        Ok(combine(
+            &[dh1.as_slice(), dh2.as_slice(), dh3.as_slice()],
+            false,
+        ))
     }
 }
 
@@ -70,8 +73,16 @@ fn combine(parts: &[&[u8]], initiator: bool) -> SessionKeys {
     k2.copy_from_slice(&okm[32..64]);
     root.copy_from_slice(&okm[64..96]);
     if initiator {
-        SessionKeys { send_key: k1, recv_key: k2, chain_key: root }
+        SessionKeys {
+            send_key: k1,
+            recv_key: k2,
+            chain_key: root,
+        }
     } else {
-        SessionKeys { send_key: k2, recv_key: k1, chain_key: root }
+        SessionKeys {
+            send_key: k2,
+            recv_key: k1,
+            chain_key: root,
+        }
     }
 }
