@@ -1,0 +1,44 @@
+[package]
+name = "liberty-messenger"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Liberty Messenger V2 core — post-quantum E2EE, P2P, desktop"
+
+[lib]
+name = "liberty_messenger"
+path = "src/lib.rs"
+
+[[bin]]
+name = "liberty-messenger"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+
+aes-gcm = "0.10"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+sha2 = "0.10"
+sha3 = "0.10"
+hkdf = "0.12"
+argon2 = "0.5"
+zeroize = { version = "1.7", features = ["derive"] }
+image = "0.25"
+base64 = "0.22"
+
+[features]
+default = []
+p2p = []
+desktop = []

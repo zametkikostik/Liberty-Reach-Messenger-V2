@@ -1,0 +1,19 @@
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: self-hosting/Dockerfile
+    ports:
+      - "8008:8008"
+    environment:
+      SERVER_ADDR: "0.0.0.0:8008"
+      DATABASE_URL: "sqlite:/data/liberty.db"
+      JWT_SECRET: "${JWT_SECRET:-change-me-in-production-liberty-v2}"
+      RUST_LOG: "liberty_server=info"
+    volumes:
+      - lr-data:/data
+      - ../uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  lr-data:
