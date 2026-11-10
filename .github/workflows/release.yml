@@ -1,0 +1,29 @@
+name: Release (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag (e.g. v2.0.0)"
+        required: true
+        type: string
+      draft:
+        description: "Draft release"
+        type: boolean
+        default: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Liberty Messenger ${{ inputs.tag }}
+          draft: ${{ inputs.draft }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

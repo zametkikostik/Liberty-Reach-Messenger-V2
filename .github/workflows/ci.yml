@@ -1,0 +1,89 @@
+# Liberty Messenger V2 — CI only manual
+# Does not run on push / PR
+
+name: CI (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: "Build & test server"
+        type: boolean
+        default: true
+      messenger:
+        description: "Test messenger crypto"
+        type: boolean
+        default: true
+      frontend:
+        description: "Build frontend"
+        type: boolean
+        default: true
+      bots:
+        description: "Build bots"
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  server:
+    if: inputs.backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config libsqlite3-dev
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-server-${{ hashFiles('server/Cargo.toml') }}
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy -- -D warnings
+      - run: cargo build --release
+      - run: cargo test --release
+
+  messenger:
+    if: inputs.messenger
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: messenger
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      - run: cargo test --lib
+
+  frontend:
+    if: inputs.frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - run: npm install
+      - run: npm run build
+
+  bots:
+    if: inputs.bots
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release

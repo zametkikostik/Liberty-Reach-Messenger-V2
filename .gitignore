@@ -1,0 +1,65 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Node
+node_modules/
+dist/
+.npm
+*.log
+package-lock.json
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+
+# Data
+*.db
+*.sqlite
+*.sqlite3
+uploads/*
+!uploads/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Android
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/local.properties
+*.apk
+*.aab
+
+# Desktop
+*.deb
+*.AppImage
+*.dmg
+*.msi
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Solidity
+smart-contracts/cache/
+smart-contracts/artifacts/
+smart-contracts/node_modules/
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# Coverage
+coverage/
+lcov.info
