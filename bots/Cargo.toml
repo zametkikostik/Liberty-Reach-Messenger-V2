@@ -1,0 +1,22 @@
+[package]
+name = "liberty-bots"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Liberty Messenger BotFather platform"
+
+[[bin]]
+name = "liberty-bots"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
