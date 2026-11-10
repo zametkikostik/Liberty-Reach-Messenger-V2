@@ -36,7 +36,8 @@ class _LockScreenState extends State<LockScreen> {
       }
     } on StateError catch (e) {
       // Fail fast: without the native core there is NO encryption.
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message.toString();
+);
     }
   }
 
