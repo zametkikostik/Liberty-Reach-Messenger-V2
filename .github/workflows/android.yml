@@ -20,6 +20,24 @@ permissions:
   contents: write
 
 jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-core
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: cargo build --release
+
   apk:
     runs-on: ubuntu-latest
     steps:
@@ -39,6 +57,10 @@ jobs:
         working-directory: mobile
         run: flutter pub get
 
+      - name: Flutter analyze
+        working-directory: mobile
+        run: flutter analyze
+
       - name: Build debug APK
         working-directory: mobile
         run: flutter build apk --debug
@@ -46,12 +68,11 @@ jobs:
       - name: Build release APK
         working-directory: mobile
         run: flutter build apk --release
-        continue-on-error: true
 
       - name: Collect APKs
         run: |
           mkdir -p dist
-          cp mobile/build/app/outputs/flutter-apk/*.apk dist/ || true
+          cp mobile/build/app/outputs/flutter-apk/*.apk dist/
           ls -la dist/
 
       - name: Upload APK artifacts
@@ -75,14 +96,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  rust:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: rust-core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test || true
-      - run: cargo build --release || true
