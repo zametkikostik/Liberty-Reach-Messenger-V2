@@ -208,6 +208,79 @@ pub unsafe extern "C" fn liberty_session_has(handle: u32, peer_id: *const c_char
     api::session_has(handle, from_c(peer_id))
 }
 
+/// Persist the session state (ratchet sessions + prekeys) to `path`,
+/// encrypted with a key derived from `password` (Argon2 → AES-256-GCM).
+///
+/// # Safety
+///
+/// `path` and `password` must point to valid NUL-terminated UTF-8
+/// (or be null, which fails cleanly).
+#[no_mangle]
+pub unsafe extern "C" fn liberty_session_save(
+    handle: u32,
+    path: *const c_char,
+    password: *const c_char,
+) -> bool {
+    api::session_save(handle, from_c(path), from_c(password))
+}
+
+/// Restore a saved session state into an existing handle bound to the same
+/// identity. Returns false on wrong password, corrupt file, or identity
+/// mismatch.
+///
+/// # Safety
+///
+/// `path` and `password` must point to valid NUL-terminated UTF-8
+/// (or be null, which fails cleanly).
+#[no_mangle]
+pub unsafe extern "C" fn liberty_session_load(
+    handle: u32,
+    path: *const c_char,
+    password: *const c_char,
+) -> bool {
+    api::session_load(handle, from_c(path), from_c(password))
+}
+
+/// Register an auto-save target and persist immediately; the state is then
+/// re-encrypted after every mutation, so conversations survive kills at any
+/// point. Wiped automatically on panic (duress) unlock.
+///
+/// # Safety
+///
+/// `path` and `password` must point to valid NUL-terminated UTF-8
+/// (or be null, which fails cleanly).
+#[no_mangle]
+pub unsafe extern "C" fn liberty_session_set_autosave(
+    handle: u32,
+    path: *const c_char,
+    password: *const c_char,
+) -> bool {
+    api::session_set_autosave(handle, from_c(path), from_c(password))
+}
+
+/// Securely overwrite and remove a session-state file (used by the UI when
+/// it observes a panic/duress unlock).
+///
+/// # Safety
+///
+/// `path` must point to valid NUL-terminated UTF-8 (or be null).
+#[no_mangle]
+pub unsafe extern "C" fn liberty_session_wipe_state(path: *const c_char) -> bool {
+    api::session_wipe_state(from_c(path))
+}
+
+/// Remove the auto-save registration for a handle (call on lock). The saved
+/// file stays on disk, encrypted.
+///
+/// # Safety
+///
+/// `handle` must be a value returned by `liberty_session_create*` (a stale
+/// handle simply returns false).
+#[no_mangle]
+pub unsafe extern "C" fn liberty_session_clear_autosave(handle: u32) -> bool {
+    api::session_clear_autosave(handle)
+}
+
 // ---- Federation ----
 
 /// Current federation config as JSON. Caller frees.
