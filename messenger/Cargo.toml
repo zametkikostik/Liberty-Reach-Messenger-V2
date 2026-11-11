@@ -42,10 +42,14 @@ base64 = "0.22"
 # when crates.io / local cache is available on the build host.
 pqc_kyber = { version = "0.7.1", optional = true }
 
+# libp2p stack (uncomment + enable feature p2p when crates resolve on host):
+# libp2p = { version = "0.53", optional = true, default-features = false, features = ["gossipsub", "tcp", "noise", "yamux", "mdns", "tokio"] }
+
 [features]
 default = []
 # Real post-quantum KEM (Kyber768 via pqc_kyber). Requires network/cache for the crate.
 kyber = ["dep:pqc_kyber"]
-# Future: full libp2p Gossipsub (currently honest relay via server WsHub)
+# Full libp2p Gossipsub (currently honest relay via server WsHub)
+# p2p = ["dep:libp2p"]
 p2p = []
 desktop = []
