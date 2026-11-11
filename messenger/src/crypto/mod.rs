@@ -1,13 +1,17 @@
-//! Post-quantum ready hybrid crypto + steganography + signatures
+//! Post-quantum ready hybrid crypto + signatures (+ optional stego / Kyber)
 
 mod hybrid;
 mod kyber_hybrid;
 mod signatures;
+
+#[cfg(feature = "stego")]
 mod steganography;
 
 pub use hybrid::{Ciphertext, HybridCipher, SessionKeys};
 pub use kyber_hybrid::{HybridHandshakeReply, HybridIdentity, HybridPublicBundle};
 pub use signatures::{PublicSignKey, SignKeypair};
+
+#[cfg(feature = "stego")]
 pub use steganography::Steganography;
 
 use thiserror::Error;

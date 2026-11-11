@@ -8,4 +8,7 @@ pub mod ai;
 pub mod telegram;
 pub mod webrtc;
 
-pub use crypto::{HybridCipher, SignKeypair, Steganography};
+pub use crypto::{HybridCipher, HybridIdentity, SignKeypair};
+
+#[cfg(feature = "stego")]
+pub use crypto::Steganography;

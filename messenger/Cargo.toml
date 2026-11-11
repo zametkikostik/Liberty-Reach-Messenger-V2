@@ -34,22 +34,21 @@ sha2 = "0.10"
 sha3 = "0.10"
 hkdf = "0.12"
 argon2 = "0.5"
-zeroize = { version = "1.7", features = ["derive"] }
-image = "0.25"
+zeroize = "1.6"
 base64 = "0.22"
 
-# Real Kyber (pure Rust, MSRV 1.56). Enable with --features kyber
-# when crates.io / local cache is available on the build host.
-pqc_kyber = { version = "0.7.1", optional = true }
+# Optional: LSB steganography (pulls image crate — needs newer Rust on some hosts)
+image = { version = "0.24", optional = true }
 
-# libp2p stack (uncomment + enable feature p2p when crates resolve on host):
-# libp2p = { version = "0.53", optional = true, default-features = false, features = ["gossipsub", "tcp", "noise", "yamux", "mdns", "tokio"] }
+# Real Kyber (pure Rust, MSRV 1.56). Enable: --features kyber
+pqc_kyber = { version = "0.7.1", optional = true }
 
 [features]
 default = []
-# Real post-quantum KEM (Kyber768 via pqc_kyber). Requires network/cache for the crate.
+# Post-quantum KEM (Kyber768)
 kyber = ["dep:pqc_kyber"]
+# LSB steganography in images
+stego = ["dep:image"]
 # Full libp2p Gossipsub (currently honest relay via server WsHub)
-# p2p = ["dep:libp2p"]
 p2p = []
 desktop = []

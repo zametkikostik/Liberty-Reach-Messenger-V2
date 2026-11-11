@@ -1,11 +1,9 @@
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use zeroize::ZeroizeOnDrop;
 
 use super::{CryptoError, Result};
 
-#[derive(ZeroizeOnDrop)]
 pub struct SignKeypair {
     signing: SigningKey,
 }
