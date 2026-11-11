@@ -38,7 +38,14 @@ zeroize = { version = "1.7", features = ["derive"] }
 image = "0.25"
 base64 = "0.22"
 
+# Real Kyber (pure Rust, MSRV 1.56). Enable with --features kyber
+# when crates.io / local cache is available on the build host.
+pqc_kyber = { version = "0.7.1", optional = true }
+
 [features]
 default = []
+# Real post-quantum KEM (Kyber768 via pqc_kyber). Requires network/cache for the crate.
+kyber = ["dep:pqc_kyber"]
+# Future: full libp2p Gossipsub (currently honest relay via server WsHub)
 p2p = []
 desktop = []
