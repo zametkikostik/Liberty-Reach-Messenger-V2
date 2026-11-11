@@ -4,19 +4,24 @@
   "version": "2.0.0",
   "identifier": "app.liberty.messenger",
   "build": {
-    "beforeDevCommand": "cd ../../frontend && npm run dev",
+    "beforeDevCommand": "npm run dev --prefix ../../frontend",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "cd ../../frontend && npm run build",
+    "beforeBuildCommand": "npm run build --prefix ../../frontend",
     "frontendDist": "../../frontend/dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "Liberty Messenger V2",
         "width": 1100,
         "height": 720,
+        "minWidth": 800,
+        "minHeight": 520,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "center": true
       }
     ],
     "security": {
@@ -26,6 +31,20 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": []
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/henry.w@example.net",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "category": "SocialNetworking",
+    "shortDescription": "Private E2EE messenger",
+    "longDescription": "Liberty Messenger V2 — client-side AES-256-GCM E2EE, optional Kyber hybrid, honest relay."
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
   }
 }

@@ -1,31 +1,73 @@
 # Liberty Desktop V2 (Tauri 2)
 
-Native shell around the React frontend.
+Native shell around the shared React frontend (`../frontend`).
+
+E2EE stays in the webview (`frontend/src/crypto/e2ee.ts`). The Rust process never sees message plaintext.
+
+## Layout
+
+```
+desktop-v2/
+├── package.json          # @tauri-apps/cli scripts
+├── README.md
+└── src-tauri/
+    ├── Cargo.toml
+    ├── build.rs
+    ├── tauri.conf.json
+    ├── capabilities/default.json
+    ├── icons/
+    └── src/
+        ├── main.rs       # desktop entry → liberty_desktop_lib::run()
+        └── lib.rs        # commands + Builder
+```
 
 ## Prerequisites
 
-- Rust 1.75+
+- Rust 1.75+ (1.77+ recommended for Tauri 2)
 - Node 18+
-- System deps for Tauri: https://v2.tauri.app/start/prerequisites/
+- System libs: https://v2.tauri.app/start/prerequisites/
+- CLI: `cargo install tauri-cli --version "^2"` **or** `npm i` in this folder
 
 ## Dev
 
 ```bash
-# terminal 1 — API
+# 1) Backend
 cd ../server && cargo run
+# → http://127.0.0.1:8008/health
 
-# terminal 2 — UI (or let Tauri beforeDevCommand start it)
-cd ../frontend && npm install && npm run dev
-
-# terminal 3 — desktop shell
-cd src-tauri && cargo tauri dev
+# 2) Desktop (starts Vite via beforeDevCommand + native window)
+cd ../desktop-v2
+npm install          # once — pulls @tauri-apps/cli
+npm run dev
+# or: cargo tauri dev --manifest-path src-tauri/Cargo.toml
 ```
 
-## Commands exposed to the webview
+Frontend proxies `/api` and `/ws` to the server (see `frontend/vite.config.ts`).
 
-| Command | Purpose |
+Optional: `LIBERTY_SERVER_URL=http://127.0.0.1:8008 npm run dev`
+
+## Production build
+
+```bash
+cd desktop-v2
+npm run build
+# artifacts under src-tauri/target/release/bundle/
+```
+
+## Native commands (invoke from webview)
+
+| Command | Returns |
 |---------|--------|
-| `app_info` | version, e2ee/kyber flags |
-| `open_backend_url` | base URL of Axum server |
+| `app_info` | name, version, e2ee/kyber/p2p flags, OS |
+| `backend_url` | Axum base URL |
+| `backend_health` | configured endpoint info |
 
-E2EE stays in the webview (`frontend/src/crypto/e2ee.ts`). Native process never sees plaintext.
+Example (with `withGlobalTauri: true`):
+
+```js
+const info = await window.__TAURI__.core.invoke('app_info');
+```
+
+## Capabilities
+
+`capabilities/default.json` grants core window/app + `shell:allow-open` for the `main` window only.
