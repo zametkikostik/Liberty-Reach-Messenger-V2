@@ -11,16 +11,21 @@ use hkdf::Hkdf;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha3::Sha3_256;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::Zeroize;
 
 use super::{CryptoError, Result};
 
 const NONCE_LEN: usize = 12;
 const KEY_LEN: usize = 32;
 
-#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SessionKeys {
     key: [u8; KEY_LEN],
+}
+
+impl Drop for SessionKeys {
+    fn drop(&mut self) {
+        self.key.zeroize();
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
