@@ -1,24 +1,35 @@
 //! P2P layer for Liberty Messenger V2
 //!
-//! ## Production path (default)
-//! **Honest relay** via server `WsHub` — ciphertext-only fan-out to chat members.
-//! No fake decentralisation: the server is a pure relay of opaque payloads.
+//! ## Production path (default) — **honest relay**
+//! Server `WsHub` fans out **ciphertext only** to chat members over WebSocket.
+//! No plaintext on the wire or in the database. Clients encrypt with AES-GCM
+//! (`lr1:`) before POST.
 //!
-//! ## Optional path (`--features p2p`)
-//! libp2p Gossipsub + Kademlia + mDNS when those crates are available on the host.
+//! ## In-process mesh (always available)
+//! [`LocalMesh`] is a process-local pub/sub that mirrors Gossipsub topic
+//! semantics (`liberty/chat/{id}`). Used for unit tests and same-process
+//! multi-peer demos without network deps.
+//!
+//! ## Optional libp2p (`--features p2p`)
+//! Real Swarm + Gossipsub needs **Rust ≥ ~1.85** (transitive `edition2024`) and
+//! a working crates mirror. On older toolchains the feature is reserved:
 //!
 //! ```text
+//! # messenger/Cargo.toml — uncomment libp2p dep, then:
 //! cargo build -p liberty-messenger --features p2p
 //! ```
 //!
-//! Topic layout: `liberty/chat/{chat_id}` for message fan-out.
-//! Payload is always client-encrypted (`lr1:` AES-GCM or hybrid session).
+//! Payload is always client-encrypted; P2P never sees plaintext.
+
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use thiserror::Error;
+use tokio::sync::{broadcast, RwLock};
 
 #[derive(Error, Debug)]
 pub enum P2pError {
-    #[error("p2p disabled — build with --features p2p (or use server WsHub relay)")]
+    #[error("p2p disabled — use server WsHub relay, LocalMesh, or build with --features p2p")]
     Disabled,
     #[error("network: {0}")]
     Network(String),
@@ -28,13 +39,13 @@ pub enum P2pError {
     NotSubscribed(String),
 }
 
-/// Lightweight node identity used by both relay clients and future Gossipsub peers.
+/// Lightweight node identity (relay client or future Gossipsub peer).
 #[derive(Clone, Debug)]
 pub struct P2pNode {
     pub peer_id: String,
 }
 
-/// Incoming message from a topic (Gossipsub or local test harness).
+/// Incoming message from a topic.
 #[derive(Clone, Debug)]
 pub struct P2pMessage {
     pub topic: String,
@@ -49,12 +60,6 @@ impl P2pNode {
         }
     }
 
-    /// Publish to a topic.
-    ///
-    /// Without `p2p` feature this is a no-op success — actual delivery is the
-    /// server WebSocket hub (`WsHub::publish`). Callers in the app should prefer
-    /// the REST send + hub path; this method keeps the API stable for a future
-    /// libp2p backend.
     pub async fn publish(&self, topic: &str, data: &[u8]) -> Result<(), P2pError> {
         if topic.is_empty() {
             return Err(P2pError::Topic("empty topic".into()));
@@ -70,7 +75,6 @@ impl P2pNode {
         }
     }
 
-    /// Subscribe to a topic. Without `p2p` returns Disabled — use server WS join.
     pub async fn subscribe(&self, topic: &str) -> Result<(), P2pError> {
         if topic.is_empty() {
             return Err(P2pError::Topic("empty topic".into()));
@@ -89,21 +93,16 @@ impl P2pNode {
         &self.peer_id
     }
 
-    /// True when this binary was built with real libp2p Gossipsub.
     pub fn has_gossipsub() -> bool {
         cfg!(feature = "p2p")
     }
 
-    // ── Feature-gated Gossipsub hooks (fill when libp2p is on the host) ──
-
     #[cfg(feature = "p2p")]
     async fn publish_gossipsub(&self, topic: &str, data: &[u8]) -> Result<(), P2pError> {
-        // Placeholder for:
-        //   swarm.behaviour_mut().gossipsub.publish(IdentTopic::new(topic), data)
-        // Wire Swarm + Gossipsub in a dedicated runtime task when deps land.
         let _ = (topic, data);
         Err(P2pError::Network(
-            "libp2p Gossipsub not yet wired — enable crate deps and implement Swarm".into(),
+            "feature p2p set but Swarm not linked — uncomment libp2p in Cargo.toml on Rust ≥1.85"
+                .into(),
         ))
     }
 
@@ -111,7 +110,8 @@ impl P2pNode {
     async fn subscribe_gossipsub(&self, topic: &str) -> Result<(), P2pError> {
         let _ = topic;
         Err(P2pError::Network(
-            "libp2p Gossipsub not yet wired — enable crate deps and implement Swarm".into(),
+            "feature p2p set but Swarm not linked — uncomment libp2p in Cargo.toml on Rust ≥1.85"
+                .into(),
         ))
     }
 }
@@ -122,28 +122,101 @@ impl Default for P2pNode {
     }
 }
 
-/// Topic naming helper: chat rooms map to deterministic topics.
 pub fn chat_topic(chat_id: &str) -> String {
     format!("liberty/chat/{}", chat_id)
 }
 
-/// Transport preference for a deployment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransportMode {
-    /// Server WsHub only (default, always available)
     Relay,
-    /// Direct libp2p when feature `p2p` is compiled in
     Gossipsub,
-    /// Prefer Gossipsub, fall back to relay
     Hybrid,
+    Local,
 }
 
 impl TransportMode {
     pub fn effective(self) -> TransportMode {
         match self {
             TransportMode::Gossipsub | TransportMode::Hybrid if P2pNode::has_gossipsub() => self,
+            TransportMode::Local => TransportMode::Local,
             _ => TransportMode::Relay,
         }
+    }
+}
+
+struct MeshInner {
+    topics: HashMap<String, broadcast::Sender<P2pMessage>>,
+}
+
+#[derive(Clone)]
+pub struct LocalMesh {
+    inner: Arc<RwLock<MeshInner>>,
+}
+
+impl LocalMesh {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(MeshInner {
+                topics: HashMap::new(),
+            })),
+        }
+    }
+
+    pub async fn subscribe(&self, topic: &str) -> Result<broadcast::Receiver<P2pMessage>, P2pError> {
+        if topic.is_empty() {
+            return Err(P2pError::Topic("empty topic".into()));
+        }
+        let mut g = self.inner.write().await;
+        let tx = g
+            .topics
+            .entry(topic.to_string())
+            .or_insert_with(|| {
+                let (tx, _) = broadcast::channel(256);
+                tx
+            })
+            .clone();
+        Ok(tx.subscribe())
+    }
+
+    pub async fn publish(
+        &self,
+        topic: &str,
+        data: &[u8],
+        from: Option<&str>,
+    ) -> Result<usize, P2pError> {
+        if topic.is_empty() {
+            return Err(P2pError::Topic("empty topic".into()));
+        }
+        let g = self.inner.read().await;
+        let Some(tx) = g.topics.get(topic) else {
+            return Ok(0);
+        };
+        let msg = P2pMessage {
+            topic: topic.to_string(),
+            data: data.to_vec(),
+            from: from.map(str::to_string),
+        };
+        let n = tx.receiver_count();
+        let _ = tx.send(msg);
+        Ok(n)
+    }
+
+    pub async fn ensure_topic(&self, topic: &str) -> Result<(), P2pError> {
+        if topic.is_empty() {
+            return Err(P2pError::Topic("empty topic".into()));
+        }
+        let mut g = self.inner.write().await;
+        g.topics.entry(topic.to_string()).or_insert_with(|| {
+            let (tx, _) = broadcast::channel(256);
+            tx
+        });
+        Ok(())
+    }
+}
+
+impl Default for LocalMesh {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -169,5 +242,35 @@ mod tests {
     fn transport_defaults_to_relay() {
         assert_eq!(TransportMode::Gossipsub.effective(), TransportMode::Relay);
         assert_eq!(TransportMode::Relay.effective(), TransportMode::Relay);
+        assert_eq!(TransportMode::Local.effective(), TransportMode::Local);
+    }
+
+    #[tokio::test]
+    async fn local_mesh_fanout() {
+        let mesh = LocalMesh::new();
+        let topic = chat_topic("room-1");
+        mesh.ensure_topic(&topic).await.unwrap();
+        let mut a = mesh.subscribe(&topic).await.unwrap();
+        let mut b = mesh.subscribe(&topic).await.unwrap();
+        let n = mesh
+            .publish(&topic, b"lr1:ciphertext", Some("peer-alice"))
+            .await
+            .unwrap();
+        assert!(n >= 2);
+        let ma = a.recv().await.unwrap();
+        let mb = b.recv().await.unwrap();
+        assert_eq!(ma.data, b"lr1:ciphertext");
+        assert_eq!(mb.from.as_deref(), Some("peer-alice"));
+        assert_eq!(ma.topic, topic);
+    }
+
+    #[tokio::test]
+    async fn local_mesh_no_subs_ok() {
+        let mesh = LocalMesh::new();
+        let n = mesh
+            .publish(&chat_topic("empty"), b"x", None)
+            .await
+            .unwrap();
+        assert_eq!(n, 0);
     }
 }
