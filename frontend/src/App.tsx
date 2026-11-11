@@ -7,6 +7,7 @@ import {
   importChatKey,
   isEncrypted,
 } from "./crypto/e2ee";
+import { isTauri, tauriAppInfo } from "./tauri";
 
 const AUTH_KEY = "liberty_auth_v2";
 
@@ -31,12 +32,21 @@ export default function App() {
   const [ttl, setTtl] = useState<number | "">("");
   const [wsStatus, setWsStatus] = useState<"off" | "on" | "err">("off");
   const [e2eeOn] = useState(true);
+  const [desktopLabel, setDesktopLabel] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
   const activeRef = useRef<string | null>(null);
 
   useEffect(() => {
     activeRef.current = active;
   }, [active]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    tauriAppInfo().then((info) => {
+      if (info) setDesktopLabel(`Desktop · ${String(info.version ?? "2.0")}`);
+      else setDesktopLabel("Desktop");
+    });
+  }, []);
 
   const persist = (a: Auth | null) => {
     setAuth(a);
@@ -87,8 +97,7 @@ export default function App() {
     }
     wsRef.current = sock;
     sock.onopen = () => {
-      if (stopped) return;
-      setWsStatus("on");
+      if (!stopped) setWsStatus("on");
       if (activeRef.current) {
         sock.send(JSON.stringify({ type: "join", chat_id: activeRef.current }));
       }
@@ -99,7 +108,7 @@ export default function App() {
     sock.onerror = () => setWsStatus("err");
     sock.onmessage = async (ev) => {
       try {
-        const v = JSON.parse(ev.data);
+        const v = JSON.parse(String(ev.data));
         if (v.type === "message" && v.chat_id === activeRef.current) {
           const plain = await decryptBody(v.chat_id, v.body);
           setMessages((prev) => {
@@ -291,7 +300,7 @@ export default function App() {
             }}
           >
             <span style={{ color: "var(--muted)", marginRight: "auto" }}>
-              Клиентское AES-256-GCM · сервер хранит только ciphertext
+              {desktopLabel ? desktopLabel + " · " : ""}Клиентское AES-256-GCM · сервер хранит только ciphertext
             </span>
             <button className="btn sm ghost" onClick={shareKey}>
               Экспорт ключа
