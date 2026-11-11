@@ -37,18 +37,15 @@ argon2 = "0.5"
 zeroize = "1.6"
 base64 = "0.22"
 
-# Optional: LSB steganography (pulls image crate — needs newer Rust on some hosts)
 image = { version = "0.24", optional = true }
-
-# Real Kyber (pure Rust, MSRV 1.56). Enable: --features kyber
 pqc_kyber = { version = "0.7.1", optional = true }
+
+# libp2p (requires Rust ≥ ~1.85 / edition2024; uncomment on capable host):
+# libp2p = { version = "0.53", optional = true, default-features = false, features = ["gossipsub", "tcp", "noise", "yamux", "mdns", "tokio"] }
 
 [features]
 default = []
-# Post-quantum KEM (Kyber768)
 kyber = ["dep:pqc_kyber"]
-# LSB steganography in images
 stego = ["dep:image"]
-# Full libp2p Gossipsub (currently honest relay via server WsHub)
 p2p = []
 desktop = []
