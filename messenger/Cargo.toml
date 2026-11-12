@@ -40,6 +40,9 @@ base64 = "0.22"
 image = { version = "0.24", optional = true }
 pqc_kyber = { version = "0.7.1", optional = true }
 
+# Optional HTTP for AI / Web3
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
+
 # libp2p (requires Rust ≥ ~1.85 / edition2024; uncomment on capable host):
 # libp2p = { version = "0.53", optional = true, default-features = false, features = ["gossipsub", "tcp", "noise", "yamux", "mdns", "tokio"] }
 
@@ -48,4 +51,6 @@ default = []
 kyber = ["dep:pqc_kyber"]
 stego = ["dep:image"]
 p2p = []
+ai = ["dep:reqwest"]
+web3 = ["dep:reqwest"]
 desktop = []
