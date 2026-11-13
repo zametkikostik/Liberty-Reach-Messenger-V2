@@ -46,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
             "/api/v1/chats/:id/messages",
             get(api::messages::list).post(api::messages::send),
         )
+        .route("/api/v1/ai/translate", post(api::ai::translate))
         .route("/ws", get(websocket::ws_handler))
         .layer(TraceLayer::new_for_http())
         .layer(
