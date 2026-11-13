@@ -1,31 +1,29 @@
 //! P2P layer for Liberty Messenger V2
 //!
 //! ## Production path (default) — **honest relay**
-//! Server `WsHub` fans out **ciphertext only** to chat members over WebSocket.
-//! No plaintext on the wire or in the database. Clients encrypt with AES-GCM
-//! (`lr1:`) before POST.
+//! Server `WsHub` fans out **ciphertext only** over WebSocket.
 //!
 //! ## In-process mesh (always available)
-//! [`LocalMesh`] is a process-local pub/sub that mirrors Gossipsub topic
-//! semantics (`liberty/chat/{id}`). Used for unit tests and same-process
-//! multi-peer demos without network deps.
+//! [`LocalMesh`] — process-local pub/sub, topics `liberty/chat/{id}`.
 //!
-//! ## Optional libp2p (`--features p2p`)
-//! Real Swarm + Gossipsub needs **Rust ≥ ~1.85** (transitive `edition2024`) and
-//! a working crates mirror. On older toolchains the feature is reserved:
+//! ## libp2p Gossipsub (`--features p2p`, Rust ≥ ~1.85)
+//! [`GossipNode`]: TCP + Noise + Yamux + Gossipsub. See `gossipsub` module.
 //!
 //! ```text
-//! # messenger/Cargo.toml — uncomment libp2p dep, then:
 //! cargo build -p liberty-messenger --features p2p
 //! ```
-//!
-//! Payload is always client-encrypted; P2P never sees plaintext.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use thiserror::Error;
 use tokio::sync::{broadcast, RwLock};
+
+#[cfg(feature = "p2p")]
+mod gossipsub;
+
+#[cfg(feature = "p2p")]
+pub use gossipsub::GossipNode;
 
 #[derive(Error, Debug)]
 pub enum P2pError {
@@ -39,13 +37,11 @@ pub enum P2pError {
     NotSubscribed(String),
 }
 
-/// Lightweight node identity (relay client or future Gossipsub peer).
 #[derive(Clone, Debug)]
 pub struct P2pNode {
     pub peer_id: String,
 }
 
-/// Incoming message from a topic.
 #[derive(Clone, Debug)]
 pub struct P2pMessage {
     pub topic: String,
@@ -66,7 +62,10 @@ impl P2pNode {
         }
         #[cfg(feature = "p2p")]
         {
-            return self.publish_gossipsub(topic, data).await;
+            let _ = data;
+            return Err(P2pError::Network(
+                "use GossipNode::publish on a running swarm (feature p2p)".into(),
+            ));
         }
         #[cfg(not(feature = "p2p"))]
         {
@@ -81,7 +80,9 @@ impl P2pNode {
         }
         #[cfg(feature = "p2p")]
         {
-            return self.subscribe_gossipsub(topic).await;
+            Err(P2pError::Network(
+                "use GossipNode::subscribe on a running swarm (feature p2p)".into(),
+            ))
         }
         #[cfg(not(feature = "p2p"))]
         {
@@ -95,24 +96,6 @@ impl P2pNode {
 
     pub fn has_gossipsub() -> bool {
         cfg!(feature = "p2p")
-    }
-
-    #[cfg(feature = "p2p")]
-    async fn publish_gossipsub(&self, topic: &str, data: &[u8]) -> Result<(), P2pError> {
-        let _ = (topic, data);
-        Err(P2pError::Network(
-            "feature p2p set but Swarm not linked — uncomment libp2p in Cargo.toml on Rust ≥1.85"
-                .into(),
-        ))
-    }
-
-    #[cfg(feature = "p2p")]
-    async fn subscribe_gossipsub(&self, topic: &str) -> Result<(), P2pError> {
-        let _ = topic;
-        Err(P2pError::Network(
-            "feature p2p set but Swarm not linked — uncomment libp2p in Cargo.toml on Rust ≥1.85"
-                .into(),
-        ))
     }
 }
 
