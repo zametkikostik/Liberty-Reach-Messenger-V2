@@ -13,5 +13,8 @@ pub use p2p::{LocalMesh, P2pNode, TransportMode, chat_topic};
 pub use ai::AiAssistant;
 pub use web3::Web3Client;
 
+#[cfg(feature = "p2p")]
+pub use p2p::GossipNode;
+
 #[cfg(feature = "stego")]
 pub use crypto::Steganography;

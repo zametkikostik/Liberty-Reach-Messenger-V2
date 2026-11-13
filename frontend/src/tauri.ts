@@ -1,6 +1,5 @@
 /**
- * Optional Tauri 2 bridge. Safe in pure browser (no-ops).
- * Enabled when desktop shell sets withGlobalTauri or @tauri-apps/api is present.
+ * Tauri 2 bridge — safe in pure browser (no-ops when not in desktop shell).
  */
 
 type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
@@ -35,4 +34,21 @@ export async function tauriBackendUrl(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export async function tauriBackendHealth(): Promise<Record<string, unknown> | null> {
+  const inv = getInvoke();
+  if (!inv) return null;
+  try {
+    return await inv("backend_health");
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveApiBase(fallback = "http://127.0.0.1:8008"): Promise<string> {
+  const fromTauri = await tauriBackendUrl();
+  if (fromTauri) return fromTauri;
+  const env = (import.meta as unknown as { env?: Record<string, string> }).env;
+  return env?.VITE_API_URL || fallback;
 }
