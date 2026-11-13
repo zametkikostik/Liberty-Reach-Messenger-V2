@@ -62,4 +62,9 @@ export const api = {
         self_destruct_minutes: ttl ?? null,
       }),
     }),
+  translate: (text: string, target_lang = "ru", source_lang?: string) =>
+    req<{ translated: string; model: string }>("/api/v1/ai/translate", {
+      method: "POST",
+      body: JSON.stringify({ text, target_lang, source_lang }),
+    }),
 };

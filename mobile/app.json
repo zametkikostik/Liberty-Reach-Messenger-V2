@@ -5,6 +5,7 @@
     "version": "2.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "scheme": "liberty",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.liberty.messenger",
@@ -16,7 +17,15 @@
       "package": "app.liberty.messenger",
       "adaptiveIcon": {
         "backgroundColor": "#0b1220"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [{ "scheme": "liberty", "host": "key" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "extra": {
       "apiUrl": "http://127.0.0.1:8008"
