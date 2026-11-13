@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Liberty Messenger",
+    "slug": "liberty-messenger",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.liberty.messenger",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Unlock chat keys stored in Keychain"
+      }
+    },
+    "android": {
+      "package": "app.liberty.messenger",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b1220"
+      }
+    },
+    "extra": {
+      "apiUrl": "http://127.0.0.1:8008"
+    }
+  }
+}

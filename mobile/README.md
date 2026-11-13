@@ -1,18 +1,29 @@
-# Liberty Mobile (React Native / Expo shell)
+# Liberty Mobile (Expo / React Native)
 
-Same E2EE contract as web: client encrypts before POST (`lr1:` AES-GCM).
+Same E2EE contract as web & desktop:
 
-## Run (Expo)
+- Client encrypts with **AES-256-GCM** before POST (`lr1:` prefix)
+- Server stores **ciphertext only**; WsHub fans out opaque payloads
+- Chat keys in **Keychain / Keystore** via `expo-secure-store` (memory fallback on web)
+
+## Setup
 
 ```bash
+cd mobile
 npm install
-EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8008 npm start
+export EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8008
+npm start
 ```
 
-Point the device at your Axum server (`server` crate on `:8008`).
+## Modules
 
-## Production notes
+- `src/crypto/e2ee.ts` — encrypt/decrypt / key import-export
+- `src/storage/secure.ts` — Keychain wrapper
+- `src/api/client.ts` — auth, chats, messages, WS URL
+- `src/App.tsx` — login, chat list, send with E2EE toggle
 
-- Replace `localStorage` key storage with Keychain / Keystore.
-- Prefer `react-native-quick-crypto` (or equivalent) for AES-GCM on native.
-- WebSocket: use `wss://` with the same JWT query param as the web client.
+## Wire format
+
+```
+lr1: + base64( nonce[12] || ciphertext )
+```
